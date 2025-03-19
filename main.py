@@ -1,5 +1,6 @@
 import json
 import logging as log
+import os.path
 import sys
 
 from win32api import GetSystemMetrics
@@ -10,15 +11,13 @@ from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLa
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-log.basicConfig(filename='save/log/dashboard.log', level=log.INFO,
-                format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 
 class StudyConfig:
     CONFIG_FILE = "save/config.json"
 
     def __init__(self):
-
         self.target_time = 0
         self.target_grade = 0.0
         self.load_config()
@@ -127,10 +126,15 @@ class CourseManager:
 
         try:
             with open(CourseManager.FILE_PATH, "r") as file:
-                return [Course.from_dict(data) for data in json.load(file)]
-            log.info("%d Kurse erfolgreich geladen.", len(courses))
+                courses = [Course.from_dict(data) for data in json.load(file)]
+                log.info("%d Kurse erfolgreich geladen.", len(courses))
+                return courses
+
         except (FileNotFoundError, json.JSONDecodeError):
-            logging.warning("Kursdatei nicht gefunden oder fehlet.")
+            log.info("Kursdatei nicht gefunden - wird erstellt.")
+            with open(CourseManager.FILE_PATH, "w") as file:
+                json.dump("", file)
+                log.info("Kursdatei wurde erstellt.")
             return []
 
     @staticmethod
@@ -247,7 +251,6 @@ class Dashboard(QWidget):
         self.config = StudyConfig()
         self.courses = CourseManager.load_courses()
         self.render()
-        #self.showFullScreen()
 
 
     def render(self):
@@ -392,7 +395,6 @@ class Dashboard(QWidget):
         ax.set_ylabel("Verbleibende ECTS")
         ax.set_title("ECTS Burndown Chart")
         ax.legend()
-
         self.burndown_canvas.draw()
 
     def add_course(self):
@@ -410,6 +412,12 @@ class Dashboard(QWidget):
 
 
 def main():
+    if not os.path.exists("save/log"):
+        os.makedirs("save/log")
+
+    log.basicConfig(filename='save/log/dashboard.log', level=log.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
     app = QApplication(sys.argv)
     dashboard = Dashboard()
     dashboard.show()
